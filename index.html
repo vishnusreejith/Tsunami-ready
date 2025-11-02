@@ -1,0 +1,1440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tsunami Ready</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- NEW: Load Tone.js for sound effects -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+    
+    <!-- Custom Styles for Games and Components -->
+    <style>
+        /* Use a custom font for the game's theme */
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@700&display=swap');
+
+        /* Base styles for app */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Active/Hidden states for page navigation */
+        .page-content {
+            display: none;
+        }
+        .page-content.active {
+            display: block;
+        }
+
+        /* Accordion styles */
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .accordion-content.open {
+            max-height: 200px; /* Adjust as needed */
+        }
+        .accordion-header.open .accordion-icon {
+            transform: rotate(180deg);
+        }
+
+        /* Puzzle game styles */
+        #go-bag-zone.drag-over {
+            background-color: #e0f2fe; /* light-blue-100 */
+            border-color: #0284c7; /* light-blue-600 */
+        }
+        .puzzle-item {
+            cursor: move;
+        }
+
+        /* NEW: Styles for the new Run Game */
+        #tsunami-run-game-container {
+            position: fixed; /* Take up full screen */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none; /* Hidden by default */
+            font-family: 'Roboto Condensed', sans-serif;
+            overflow: hidden;
+            background-color: #000;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        #gameCanvas {
+            display: block;
+            background-color: #f0f8ff; /* AliceBlue, like a bright day */
+            width: 100%;
+            height: 100%;
+        }
+
+        /* This class creates the earthquake shake effect */
+        .shake {
+            animation: shake 0.8s cubic-bezier(.36,.07,.19,.97) both;
+            transform: translate3d(0, 0, 0);
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+
+        /* Base styles for all UI overlay panels */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 20px;
+            box-sizing: border-box; /* Ensure padding doesn't break layout */
+        }
+
+        /* Custom button styling */
+        .game-button {
+            display: inline-block;
+            color: white;
+            padding: 1rem 2.5rem;
+            border-radius: 9999px; /* pill shape */
+            font-size: 1.25rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .game-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Specific styles for the warning message */
+        #warningMessage {
+            background-color: rgba(220, 38, 38, 0.85); /* Red */
+            font-size: 2.5rem;
+            text-shadow: 0 0 10px black;
+        }
+        /* --- END NEW RUN GAME STYLES --- */
+    </style>
+</head>
+<body class="bg-gray-50 font-sans">
+
+    <!-- Header & Navigation -->
+    <header class="bg-white shadow-sm sticky top-0 z-20">
+        <nav class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-blue-600">🌊 Tsunami Ready</h1>
+            <div class="space-x-4">
+                <button class="nav-link text-blue-500 font-semibold border-b-2 border-blue-500 py-2 px-1" data-target="learn">Learn</button>
+                <button class="nav-link text-gray-600 hover:text-blue-500 py-2 px-1" data-target="safety">Safety</button>
+                <button class="nav-link text-gray-600 hover:text-blue-500 py-2 px-1" data-target="quiz">Quiz</button>
+                <button class="nav-link text-gray-600 hover:text-blue-500 py-2 px-1" data-target="run-game">Run Game</button>
+                <button class="nav-link text-gray-600 hover:text-blue-500 py-2 px-1" data-target="puzzle">Puzzle</button>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="container mx-auto p-4 md:p-6">
+        
+        <!-- 1. Learn Section -->
+        <section id="learn" class="page-content active">
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <h2 class="text-3xl font-bold text-gray-800 mb-4">What is a Tsunami?</h2>
+                <p class="text-gray-700 mb-6">
+                    A tsunami is a series of powerful ocean waves caused by large-scale disturbances, most commonly from underwater earthquakes. These waves can travel across entire oceans and cause catastrophic damage when they reach coastal areas.
+                </p>
+                <div class="grid md:grid-cols-3 gap-4">
+                    <!-- Card 1 -->
+                    <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                        <h3 class="text-xl font-semibold text-blue-800 mb-2">🌊 Earthquakes</h3>
+                        <p class="text-blue-700">The sudden, large-scale movement of the seafloor during an underwater earthquake is the most common cause of tsunamis.</p>
+                    </div>
+                    <!-- Card 2 -->
+                    <div class="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                        <h3 class="text-xl font-semibold text-orange-800 mb-2">🌋 Volcanic Eruptions</h3>
+                        <p class="text-orange-700">Massive eruptions, especially from coastal or island volcanoes, can displace huge amounts of water and trigger a wave.</p>
+                    </div>
+                    <!-- Card 3 -->
+                    <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                        <h3 class="text-xl font-semibold text-green-800 mb-2">🏔️ Landslides</h3>
+                        <p class="text-green-700">Large coastal or underwater landslides, sometimes triggered by earthquakes, can also cause a significant tsunami.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. Safety Section -->
+        <section id="safety" class="page-content">
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">How to Stay Safe</h2>
+                <!-- Accordion Item 1 -->
+                <div class="border-b">
+                    <button class="accordion-header w-full flex justify-between items-center py-4">
+                        <span class="text-xl font-semibold text-gray-700">Before a Tsunami</span>
+                        <span class="accordion-icon transition-transform duration-300">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </span>
+                    </button>
+                    <div class="accordion-content">
+                        <p class="p-4 pt-0 text-gray-600">Know your area's evacuation routes. If you live, work, or play in a coastal zone, find the quickest way to high ground. Prepare an emergency "Go Bag" with water, a first-aid kit, a flashlight, batteries, and a battery-powered radio.</p>
+                    </div>
+                </div>
+                <!-- Accordion Item 2 -->
+                <div class="border-b">
+                    <button class="accordion-header w-full flex justify-between items-center py-4">
+                        <span class="text-xl font-semibold text-gray-700">During a Tsunami</span>
+                        <span class="accordion-icon transition-transform duration-300">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </span>
+                    </button>
+                    <div class="accordion-content">
+                        <p class="p-4 pt-0 text-gray-600">If you are in a coastal area and feel a strong earthquake (one that makes it hard to stand), move to high ground immediately. Do not wait for an official warning. Stay away from beaches, rivers, and estuaries. A tsunami is a series of waves; the first may not be the largest.</p>
+                    </div>
+                </div>
+                <!-- Accordion Item 3 -->
+                <div class="border-b">
+                    <button class="accordion-header w-full flex justify-between items-center py-4">
+                        <span class="text-xl font-semibold text-gray-700">After a Tsunami</span>
+                        <span class="accordion-icon transition-transform duration-300">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </span>
+                    </button>
+                    <div class="accordion-content">
+                        <p class="p-4 pt-0 text-gray-600">Listen to local authorities and do not return to the evacuation zone until you are told it is safe. Stay out of damaged buildings. Be cautious of fires, downed power lines, and contaminated water.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. Quiz Section -->
+        <section id="quiz" class="page-content">
+            <div class="bg-white p-6 rounded-lg shadow-lg max-w-2xl mx-auto">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">Test Your Knowledge!</h2>
+                
+                <!-- Quiz questions container -->
+                <div id="quiz-container">
+                    <p id="question-text" class="text-xl font-semibold text-gray-700 mb-4">Question goes here...</p>
+                    <div id="options-container" class="space-y-3">
+                        <!-- Options will be dynamically inserted here -->
+                    </div>
+                    <button id="next-quiz-btn" class="hidden mt-6 w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                        Next Question
+                    </button>
+                </div>
+
+                <!-- Quiz results container -->
+                <div id="quiz-results" class="hidden text-center">
+                    <h3 class="text-2xl font-bold text-gray-800 mb-4">Quiz Complete!</h3>
+                    <p id="score-text" class="text-xl text-gray-700 mb-6">Your score: 0 / 0</p>
+                    <button id="try-again-quiz-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                        Try Again
+                    </button>
+                </div>
+            </div>
+        </section>
+        
+        <!-- 4. Run Game Section (Placeholder for navigation) -->
+        <section id="run-game" class="page-content">
+            <!-- This section is intentionally blank. 
+                 The navigation logic will hide <main> and show the full-screen game container. -->
+        </section>
+
+        <!-- 5. Puzzle Section -->
+        <section id="puzzle" class="page-content">
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <h2 class="text-3xl font-bold text-gray-800 mb-2">What Belongs in Your Go-Bag?</h2>
+                <p class="text-gray-600 mb-6">Drag the essential items into the 'Go-Bag' and leave non-essential items out!</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Items to select -->
+                    <div>
+                        <h3 class="text-xl font-semibold text-gray-700 mb-3">Available Items</h3>
+                        <div id="item-selection" class="p-4 bg-gray-100 rounded-lg min-h-60 space-y-2">
+                            <!-- Draggable items will be inserted here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Go-Bag drop zone -->
+                    <div>
+                        <h3 class="text-xl font-semibold text-gray-700 mb-3">🎒 Go-Bag</h3>
+                        <div id="go-bag-zone" class="p-4 bg-gray-200 rounded-lg min-h-60 border-2 border-dashed border-gray-400 space-y-2">
+                            <!-- Dropped items will appear here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Puzzle Controls/Results -->
+                <div class="mt-6 text-center">
+                    <button id="check-bag-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg transition-colors">
+                        Check My Bag!
+                    </button>
+                    <div id="puzzle-results" class="hidden">
+                        <p id="puzzle-score-display" class="text-xl text-gray-700 mb-4"></p>
+                        <button id="reset-puzzle-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-lg transition-colors">
+                            Try Again
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- NEW: 6. Chatbot -->
+    <div class="fixed bottom-4 right-4 z-30">
+        <!-- Chat Toggle Button -->
+        <button id="chat-toggle-btn" class="bg-blue-600 text-white rounded-full p-4 shadow-lg hover:bg-blue-700 transition-all">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+        </button>
+
+        <!-- Chat Window -->
+        <div id="chat-window" class="hidden fixed bottom-20 right-4 w-80 h-96 bg-white rounded-lg shadow-xl flex flex-col">
+            <!-- Chat Header -->
+            <div class="flex justify-between items-center p-3 bg-blue-600 text-white rounded-t-lg">
+                <h3 class="font-semibold text-lg">Tsunami Guide Bot</h3>
+                <button id="chat-close-btn" class="text-white hover:text-gray-200">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <!-- Chat Log -->
+            <div id="chat-log" class="flex-1 p-3 space-y-3 overflow-y-auto bg-gray-50">
+                <!-- Messages appear here -->
+            </div>
+            <!-- Quick Replies -->
+            <div id="chat-quick-replies" class="p-2 border-t border-gray-200">
+                <!-- Replies appear here -->
+            </div>
+        </div>
+    </div>
+    <!-- END NEW CHATBOT -->
+
+
+    <!-- NEW: 7. Full-Screen Run Game Container -->
+    <div id="tsunami-run-game-container">
+        <!-- The main game canvas where action happens -->
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- Start Screen Overlay -->
+        <div id="startScreen" class="overlay">
+            <h1 class="text-5xl md:text-7xl font-bold mb-4 text-cyan-300">TSUNAMI SURVIVAL RUN</h1>
+            <p class="text-xl md:text-3xl mb-8 max-w-2xl">
+                An earthquake just struck! A tsunami is coming.
+                <br>
+                <strong>Tap the screen to FLY</strong> over debris.
+                <br>
+                Grab <strong class="text-lime-400">BOOSTS (B)</strong> to run faster!
+            </p>
+            
+            <!-- NEW: Level Selection -->
+            <p class="text-2xl md:text-3xl mb-4 max-w-2xl font-bold">Select Difficulty:</p>
+            <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 mb-8">
+                <button id="startEasy" class="game-button bg-green-500 hover:bg-green-600 shadow-lg shadow-green-500/30 hover:shadow-green-500/50" data-level="easy">Easy</button>
+                <button id="startNormal" class="game-button bg-cyan-500 hover:bg-cyan-600 shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50" data-level="normal">Normal</button>
+                <button id="startHard" class="game-button bg-red-500 hover:bg-red-600 shadow-lg shadow-red-500/30 hover:shadow-red-500/50" data-level="hard">Hard</button>
+            </div>
+            
+            <!-- Information Module Fact -->
+            <p id="startFact" class="text-lg md:text-xl mt-4 max-w-2xl text-yellow-300 italic"></p>
+        </div>
+
+        <!-- Game Over Screen Overlay (hidden by default) -->
+        <div id="gameOverScreen" class="overlay" style="display: none;">
+            <h1 id="gameOverTitle" class="text-6xl md:text-8xl font-bold mb-4"></h1>
+            <p id="gameOverMessage" class="text-2xl md:text-4xl mb-8"></p>
+            <!-- Button Container -->
+            <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+                <button id="restartButton" class="game-button bg-cyan-500 hover:bg-cyan-600 shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50">Try Again</button>
+                <button id="homeButton" class="game-button bg-gray-500 hover:bg-gray-600 shadow-lg shadow-gray-500/30 hover:shadow-gray-500/50">Home</button>
+            </div>
+            <!-- Information Module Fact -->
+            <p id="gameOverFact" class="text-lg md:text-xl mt-4 max-w-2xl text-yellow-300 italic"></p>
+        </div>
+
+        <!-- Earthquake Warning Message (hidden by default) -->
+        <div id="warningMessage" class="overlay" style="display: none;">
+            <h1 class="font-bold">EARTHQUAKE!</h1>
+            <p class="text-2xl mt-4">TSUNAMI WARNING!</p>
+            <p class="text-2xl">RUN TO HIGH GROUND!</p>
+        </div>
+    </div>
+    <!-- END NEW RUN GAME -->
+
+
+    <!-- Main App Logic -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // --- 0. ALL TONE.JS SYNTHS (DEFINED FIRST) ---
+            
+            // Chatbot Sounds
+            const openSound = new Tone.Synth({
+                oscillator: { type: 'triangle' },
+                envelope: { attack: 0.01, decay: 0.1, sustain: 0.2, release: 0.1 }
+            }).toDestination();
+
+            const botSound = new Tone.Synth({
+                oscillator: { type: 'sine' },
+                envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.1 }
+            }).toDestination();
+
+            const userSound = new Tone.Synth({
+                oscillator: { type: 'square' },
+                envelope: { attack: 0.005, decay: 0.05, sustain: 0, release: 0.05 },
+                volume: -10
+            }).toDestination();
+            
+            // Game Sounds
+            const earthquakeSound = new Tone.Loop(time => {
+                const synth = new Tone.NoiseSynth({
+                    noise: { type: 'brown' },
+                    envelope: { attack: 0.1, decay: 0.2, sustain: 0.1, release: 0.1 },
+                    volume: -5
+                }).toDestination();
+                synth.triggerAttackRelease("4n", time);
+            }, "8n");
+
+            const jumpSound = new Tone.Synth({
+                oscillator: { type: 'triangle' },
+                envelope: { attack: 0.01, decay: 0.1, sustain: 0, release: 0.1 },
+                volume: -10
+            }).toDestination();
+
+            const boostSound = new Tone.Synth({
+                oscillator: { type: 'sawtooth' },
+                envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.1 },
+                volume: -5
+            }).toDestination();
+
+            const winSound = new Tone.Synth({
+                oscillator: { type: 'sine' },
+                envelope: { attack: 0.05, decay: 0.2, sustain: 0.3, release: 0.2 },
+                volume: -5
+            }).toDestination();
+
+            const loseSound = new Tone.Synth({
+                oscillator: { type: 'fmsquare' },
+                envelope: { attack: 0.01, decay: 0.5, sustain: 0.1, release: 0.2 },
+                volume: -5
+            }).toDestination();
+            // --- END OF SYNTHS ---
+
+
+            // --- 7. NEW RUN GAME SCRIPT ---
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+            const startScreen = document.getElementById('startScreen');
+            const gameOverScreen = document.getElementById('gameOverScreen');
+            const warningMessage = document.getElementById('warningMessage');
+            const startEasy = document.getElementById('startEasy');
+            const startNormal = document.getElementById('startNormal');
+            const startHard = document.getElementById('startHard');
+            const restartButton = document.getElementById('restartButton');
+            const homeButton = document.getElementById('homeButton');
+            const gameOverTitle = document.getElementById('gameOverTitle');
+            const gameOverMessage = document.getElementById('gameOverMessage');
+            const startFact = document.getElementById('startFact');
+            const gameOverFact = document.getElementById('gameOverFact');
+
+            // --- Information Module: Facts ---
+            const disasterFacts = [
+                "If you are in a coastal area and feel an earthquake, head for high ground immediately. Don't wait for a warning.",
+                "A tsunami is a series of waves. The first wave may not be the largest.",
+                "A tsunami can travel across an entire ocean. A 1960 tsunami from Chile caused damage as far away as Japan.",
+                "During an earthquake, 'Drop, Cover, and Hold On' is your best protection.",
+                "Most tsunamis are caused by large, undersea earthquakes.",
+                "Tsunami waves can travel as fast as a jet plane in the deep ocean (over 500 mph or 800 kph).",
+                "As a tsunami approaches shallow water, it slows down but its height increases dramatically.",
+                "Never go to the coast to watch a tsunami. If you can see the wave, you are too close to escape."
+            ];
+
+            function displayRandomFact() {
+                const fact = disasterFacts[Math.floor(Math.random() * disasterFacts.length)];
+                const tip = `Survival Tip: ${fact}`;
+                if(startFact) startFact.textContent = tip;
+                if(gameOverFact) gameOverFact.textContent = tip;
+            }
+
+            // --- Game Constants ---
+            const GRAVITY = 0.4; // Reduced gravity for flying
+            const FLY_FORCE = -9;
+            const PLAYER_SPEED = 5;
+            const GROUND_HEIGHT = 50;
+            const HIGH_GROUND_WIDTH = 200;
+            const BOOST_DURATION = 600; // 10 seconds at 60fps
+            const BOOST_MULTIPLIER = 1.8;
+
+            // NEW: Level Definitions
+            const levelSettings = {
+                'easy': {
+                    goal: 3000,
+                    waveSpeed: 0.15, // Was 0.1
+                    tsunamiDelay: 7000, // 7 sec head start
+                    obstacleRate: 0.007, // Fewer obstacles
+                    powerUpRate: 0.0065 // More power-ups
+                },
+                'normal': {
+                    goal: 5000,
+                    waveSpeed: 0.25, // Was 0.2
+                    tsunamiDelay: 5000, // 5 sec head start
+                    obstacleRate: 0.010, // Original rate
+                    powerUpRate: 0.0055 // Original rate
+                },
+                'hard': {
+                    goal: 7000,
+                    waveSpeed: 0.45, // Was 0.4
+                    tsunamiDelay: 3000, // 3 sec head start
+                    obstacleRate: 0.013, // More obstacles
+                    powerUpRate: 0.0045 // Fewer power-ups
+                }
+            };
+
+            // --- Game State Variables ---
+            let player, wave, obstacles, powerUps, groundY;
+            let gameSpeed, score;
+            let isBoosting = false;
+            let boostTimer = 0;
+            let gameState = 'START'; // START, RUNNING, WARN, GAMEOVER
+            let gameLoopId;
+            let currentLevelSettings; // NEW: To hold settings for the current game
+
+            // --- Game Classes ---
+
+            // Player object
+            class Player {
+                constructor(x, y, radius) {
+                    this.x = x;
+                    this.y = y;
+                    this.radius = radius;
+                    this.velocityY = 0;
+                    this.isGrounded = false; 
+                }
+
+                draw(color) {
+                    ctx.fillStyle = color || '#ff4500'; // Orangey-red default
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                update() {
+                    this.velocityY += GRAVITY;
+                    this.y += this.velocityY;
+
+                    // Check if player hits the ground
+                    if (this.y + this.radius > groundY) {
+                        this.y = groundY - this.radius;
+                        this.velocityY = 0;
+                        this.isGrounded = true;
+                    } else {
+                        this.isGrounded = false;
+                    }
+
+                    // Prevent flying off the top of the screen
+                    if (this.y - this.radius < 0) {
+                        this.y = this.radius;
+                        this.velocityY = 0;
+                    }
+                }
+                
+                flyUp() {
+                    this.velocityY = FLY_FORCE;
+                }
+            }
+
+            // Obstacle object
+            class Obstacle {
+                constructor(x, y, width, height, type) {
+                    this.x = x;
+                    this.y = y;
+                    this.width = width;
+                    this.height = height;
+                    this.type = type; 
+                }
+
+                draw() {
+                    if (this.type === 'spiky') {
+                        ctx.fillStyle = '#8B4513'; // SaddleBrown
+                        ctx.beginPath();
+                        ctx.moveTo(this.x, this.y + this.height); // Bottom-left
+                        ctx.lineTo(this.x + this.width / 2, this.y); // Top-middle
+                        ctx.lineTo(this.x + this.width, this.y + this.height); // Bottom-right
+                        ctx.closePath();
+                        ctx.fill();
+                    } else if (this.type === 'wide') {
+                        ctx.fillStyle = '#A0522D'; // Sienna
+                        ctx.fillRect(this.x, this.y, this.width, this.height);
+                    } else {
+                        // Default 'debris'
+                        ctx.fillStyle = '#8B4513'; // SaddleBrown
+                        ctx.fillRect(this.x, this.y, this.width, this.height);
+                    }
+                }
+
+                update() {
+                    this.x -= gameSpeed;
+                }
+            }
+
+            // Power-Up object (for Boost)
+            class PowerUp {
+                constructor(x, y, radius) {
+                    this.x = x;
+                    this.y = y;
+                    this.radius = radius;
+                }
+
+                draw() {
+                    ctx.fillStyle = '#32CD32'; // LimeGreen
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Add a "B" for Boost
+                    ctx.fillStyle = 'white';
+                    ctx.font = 'bold 15px "Roboto Condensed"';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('B', this.x, this.y);
+                }
+
+                update() {
+                    this.x -= gameSpeed;
+                }
+            }
+
+
+            // Tsunami Wave object
+            class Wave {
+                constructor(speed) { // NEW: Takes speed
+                    this.x = -canvas.width; // Start off-screen
+                    this.width = canvas.width;
+                    this.height = canvas.height * 0.6; // 60% of screen height
+                    this.speed = speed || 0.2; // NEW: Use provided speed or default
+                    this.isChasing = false;
+                }
+
+                draw() {
+                    ctx.fillStyle = 'rgba(0, 119, 190, 0.8)'; // Deep blue
+                    ctx.fillRect(this.x, canvas.height - this.height, this.width, this.height);
+                }
+
+                update() {
+                    if (this.isChasing) {
+                        this.x += this.speed;
+                    }
+                }
+            }
+
+            // --- Game Functions ---
+
+            // Set canvas size to fill the window
+            function setCanvasSize() {
+                const gameContainer = document.getElementById('tsunami-run-game-container');
+                if (gameContainer) {
+                    // Use clientWidth/Height of the container
+                    canvas.width = gameContainer.clientWidth;
+                    canvas.height = gameContainer.clientHeight;
+                    groundY = canvas.height - GROUND_HEIGHT;
+                }
+            }
+
+            // Initialize or reset game variables
+            function initGame() {
+                setCanvasSize();
+                
+                // Ensure player is defined even if canvas is 0x0 (which it might be if hidden)
+                const pX = canvas.width * 0.2;
+                const pY = groundY > 0 ? groundY - 30 : 50;
+                player = new Player(pX, pY, 20);
+
+                const waveSpeed = currentLevelSettings ? currentLevelSettings.waveSpeed : 0.2;
+                wave = new Wave(waveSpeed);
+                
+                obstacles = [];
+                powerUps = [];
+                score = 0;
+                isBoosting = false;
+                boostTimer = 0;
+                gameSpeed = PLAYER_SPEED;
+                gameState = 'START';
+
+                // Show a random fact on the start screen
+                displayRandomFact();
+            }
+
+            // Start the game sequence
+            function startGame(level) { // NEW: Takes level
+                // --- NEW: Start Audio context ---
+                Tone.start();
+                // --- END NEW ---
+
+                currentLevelSettings = levelSettings[level]; // NEW: Set current level
+                currentLevelSettings.levelName = level; // NEW: Store for restart
+
+                initGame(); // Reset everything *using the new settings*
+                startScreen.style.display = 'none';
+                gameOverScreen.style.display = 'none';
+
+                // Phase 1: Earthquake Warning
+                gameState = 'WARN';
+                warningMessage.style.display = 'flex';
+                // Shake the game container, not the whole body
+                const gameContainer = document.getElementById('tsunami-run-game-container');
+                if(gameContainer) gameContainer.classList.add('shake');
+                
+                // --- NEW: Play earthquake sound ---
+                Tone.Transport.start();
+                earthquakeSound.start(0);
+                // --- END NEW ---
+
+                setTimeout(() => {
+                    // Phase 2: The Run
+                    warningMessage.style.display = 'none';
+                    if(gameContainer) gameContainer.classList.remove('shake');
+                    
+                    // --- NEW: Stop earthquake sound ---
+                    earthquakeSound.stop();
+                    Tone.Transport.stop();
+                    // --- END NEW ---
+                    
+                    gameState = 'RUNNING';
+                    
+                    // Start the main game loop
+                    if (gameLoopId) cancelAnimationFrame(gameLoopId);
+                    gameLoop();
+                    
+                    // Phase 3: Tsunami Chase
+                    setTimeout(() => {
+                        if (gameState === 'RUNNING') {
+                            wave.isChasing = true;
+                        }
+                    }, currentLevelSettings.tsunamiDelay); // NEW: Use level-specific delay
+
+                }, 3000); // Warning lasts for 3 seconds
+            }
+
+            // Main game loop
+            function gameLoop() {
+                if (gameState !== 'RUNNING' || !canvas) return;
+
+                // Clear the canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // --- Update Game Speed based on Boost ---
+                if (isBoosting) {
+                    gameSpeed = PLAYER_SPEED * BOOST_MULTIPLIER;
+                    boostTimer--;
+                    if (boostTimer <= 0) {
+                        isBoosting = false;
+                        gameSpeed = PLAYER_SPEED;
+                    }
+                } else {
+                    gameSpeed = PLAYER_SPEED;
+                }
+
+                // Draw Ground
+                ctx.fillStyle = '#228B22'; // ForestGreen
+                ctx.fillRect(0, groundY, canvas.width, GROUND_HEIGHT);
+
+                // Draw High Ground Goal (far away)
+                const goalX = currentLevelSettings.goal - score; // NEW: Use level goal
+                const goalHeight = 200;
+                ctx.fillStyle = '#8B4513'; // Brown hill
+                ctx.fillRect(goalX, groundY - goalHeight, HIGH_GROUND_WIDTH, goalHeight + GROUND_HEIGHT);
+                // "SAFE" sign
+                ctx.fillStyle = 'white';
+                ctx.font = '30px "Roboto Condensed"';
+                ctx.textAlign = 'center';
+                ctx.fillText('HIGH GROUND', goalX + HIGH_GROUND_WIDTH / 2, groundY - goalHeight + 50);
+
+                // --- Spawn Obstacles ---
+                // NEW: Use level-specific rate and goal
+                if (Math.random() < currentLevelSettings.obstacleRate && score < (currentLevelSettings.goal - canvas.width)) {
+                    // Variety logic
+                    const randType = Math.random();
+                    let h, w, type;
+
+                    if (randType < 0.33) {
+                        type = 'spiky';
+                        h = Math.random() * 40 + 25; // 25 to 65 px high
+                        w = Math.random() * 20 + h;  // Base width relative to height
+                    } else if (randType < 0.66) {
+                        type = 'wide';
+                        h = Math.random() * 30 + 15; // 15 to 45 px high (shorter)
+                        w = Math.random() * 30 + 40; // 40 to 70 px wide
+                    } else {
+                        type = 'debris';
+                        h = Math.random() * 50 + 20; // 20 to 70 px high
+                        w = Math.random() * 30 + 20; // 20 to 50 px wide
+                    }
+                    obstacles.push(new Obstacle(canvas.width, groundY - h, w, h, type));
+                }
+
+                // Update and draw obstacles
+                for (let i = obstacles.length - 1; i >= 0; i--) {
+                    obstacles[i].update();
+                    obstacles[i].draw();
+
+                    // Collision detection (Player vs Obstacle)
+                    if (
+                        player.x < obstacles[i].x + obstacles[i].width &&
+                        player.x + player.radius > obstacles[i].x &&
+                        player.y + player.radius > obstacles[i].y
+                    ) {
+                        triggerGameOver(false, 'You hit the debris!');
+                        return;
+                    }
+
+                    // Remove obstacles that are off-screen
+                    if (obstacles[i].x + obstacles[i].width < 0) {
+                        obstacles.splice(i, 1);
+                    }
+                }
+
+                // --- Spawn Power-Ups ---
+                // NEW: Use level-specific rate and goal
+                if (Math.random() < currentLevelSettings.powerUpRate && !isBoosting && score > 500 && score < (currentLevelSettings.goal - canvas.width)) { 
+                    powerUps.push(new PowerUp(canvas.width, groundY - 80, 15)); // Spawn it mid-air
+                }
+
+                // Update and draw power-ups
+                for (let i = powerUps.length - 1; i >= 0; i--) {
+                    powerUps[i].update();
+                    powerUps[i].draw();
+
+                    // Collision detection (Player vs PowerUp)
+                    const dist = Math.hypot(player.x - powerUps[i].x, player.y - powerUps[i].y);
+                    if (dist - player.radius - powerUps[i].radius < 1) {
+                        isBoosting = true;
+                        boostTimer = BOOST_DURATION;
+                        powerUps.splice(i, 1);
+                        // --- NEW: Play boost sound ---
+                        boostSound.triggerAttackRelease("C4", "4n");
+                        setTimeout(() => boostSound.triggerAttackRelease("G4", "4n"), 100);
+                        // --- END NEW ---
+                    }
+                    // Remove if off-screen
+                    else if (powerUps[i].x + powerUps[i].radius < 0) {
+                        powerUps.splice(i, 1);
+                    }
+                }
+                
+                // --- Update and draw player ---
+                player.update();
+                player.draw(isBoosting ? '#32CD32' : '#ff4500'); // LimeGreen when boosting
+
+                // Update and draw wave
+                wave.update();
+                wave.draw();
+
+                // Update score (distance travelled)
+                score += gameSpeed;
+
+                // --- Check Win/Lose Conditions ---
+
+                // 1. Caught by wave
+                const waveTopY = canvas.height - wave.height;
+                const playerBottomY = player.y + player.radius;
+                
+                if (
+                    wave.x + wave.width > player.x - player.radius && // Wave is horizontally at the player
+                    playerBottomY > waveTopY                       // AND Player is vertically inside the wave
+                ) {
+                    triggerGameOver(false, 'The tsunami caught you!');
+                    return;
+                }
+
+                // 2. Reached high ground (Win)
+                if (score >= currentLevelSettings.goal) { // NEW: Use level goal
+                    triggerGameOver(true, `You ran ${Math.floor(currentLevelSettings.goal / 100)}m and reached safety!`); // NEW: Use level goal
+                    return;
+                }
+                
+                // --- Draw UI ---
+                ctx.fillStyle = 'black';
+                ctx.font = '24px "Roboto Condensed"';
+                ctx.textAlign = 'left';
+                ctx.fillText(`Distance: ${Math.floor(score / 100)}m`, 20, 40);
+                ctx.textAlign = 'right';
+                ctx.fillText(`Goal: ${Math.floor(currentLevelSettings.goal / 100)}m`, canvas.width - 20, 40); // NEW: Use level goal
+
+                // Draw Boost Timer
+                if (isBoosting) {
+                    ctx.fillStyle = '#32CD32';
+                    ctx.textAlign = 'center';
+                    ctx.font = 'bold 24px "Roboto Condensed"';
+                    ctx.fillText(`BOOST! ${Math.ceil(boostTimer / 60)}s`, canvas.width / 2, 40);
+                }
+
+                // Request next frame
+                gameLoopId = requestAnimationFrame(gameLoop);
+            }
+
+            // End the game
+            function triggerGameOver(isWin, message) {
+                if (gameState === 'GAMEOVER') return; // Prevent multiple calls
+                
+                cancelAnimationFrame(gameLoopId);
+                gameState = 'GAMEOVER';
+                
+                // --- NEW: Stop all sounds ---
+                earthquakeSound.stop();
+                Tone.Transport.stop();
+                // --- END NEW ---
+
+                if (isWin) {
+                    gameOverTitle.textContent = 'YOU SURVIVED!';
+                    gameOverTitle.style.color = '#34D399'; // Emerald-400
+                    // --- NEW: Play win sound ---
+                    winSound.triggerAttackRelease("C5", "8n", "+0.1");
+                    winSound.triggerAttackRelease("E5", "8n", "+0.2");
+                    winSound.triggerAttackRelease("G5", "8n", "+0.3");
+                    winSound.triggerAttackRelease("C6", "4n", "+0.4");
+                    // --- END NEW ---
+                } else {
+                    gameOverTitle.textContent = 'GAME OVER';
+                    gameOverTitle.style.color = '#EF4444'; // Red-500
+                    // --- NEW: Play lose sound ---
+                    loseSound.triggerAttackRelease("G3", "2n");
+                    // --- END NEW ---
+                }
+                gameOverMessage.textContent = message;
+                
+                // Show a random fact on the game over screen
+                displayRandomFact();
+                gameOverScreen.style.display = 'flex';
+            }
+
+            // Handle player fly (touch and mouse)
+            function handleFly(e) {
+                if (gameState === 'RUNNING') {
+                    e.preventDefault(); // Prevent screen zoom on double-tam
+                    player.flyUp();
+                    // --- NEW: Play jump sound ---
+                    jumpSound.triggerAttackRelease("C5", "8n");
+                    // --- END NEW ---
+                }
+            }
+            // --- END OF GAME SCRIPT ---
+
+
+            // --- 1. Main Navigation ---
+            const navLinks = document.querySelectorAll('.nav-link');
+            const pageContents = document.querySelectorAll('.page-content');
+
+            navLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                    const targetId = link.dataset.target;
+
+                    // --- NEW: Special handling for Run Game ---
+                    if (targetId === 'run-game') {
+                        // Hide main app
+                        document.querySelector('header').style.display = 'none';
+                        document.querySelector('main').style.display = 'none';
+                        
+                        // Show game container
+                        const gameContainer = document.getElementById('tsunami-run-game-container');
+                        gameContainer.style.display = 'block';
+
+                        // Initialize and show the game's start screen
+                        if (typeof initGame === 'function') {
+                            initGame(); // This is the new game's init
+                            document.getElementById('startScreen').style.display = 'flex';
+                            document.getElementById('gameOverScreen').style.display = 'none';
+                            // Ensure canvas is sized correctly
+                            if (typeof setCanvasSize === 'function') {
+                                setCanvasSize();
+                            }
+                        }
+                        return; // Stop further navigation logic
+                    }
+                    // --- END Special handling ---
+
+                    // If we are here, it's not the game, so make sure the app is visible
+                    document.querySelector('header').style.display = '';
+                    document.querySelector('main').style.display = '';
+                    // And hide the game
+                    const gameContainer = document.getElementById('tsunami-run-game-container');
+                    if (gameContainer) gameContainer.style.display = 'none';
+                    // Stop game loop if it exists
+                    if (typeof gameLoopId !== 'undefined' && gameLoopId) {
+                        cancelAnimationFrame(gameLoopId);
+                        gameState = 'START'; // Reset game state
+                        // Stop any lingering game sounds
+                        earthquakeSound.stop();
+                        Tone.Transport.stop();
+                    }
+
+
+                    // Hide all pages
+                    pageContents.forEach(page => {
+                        page.classList.remove('active');
+                    });
+
+                    // Show target page
+                    // Check if target exists before adding class (it won't for 'run-game' anymore)
+                    const targetPage = document.getElementById(targetId);
+                    if (targetPage) {
+                        targetPage.classList.add('active');
+                    }
+
+                    // Update nav link styles
+                    navLinks.forEach(nav => {
+                        nav.classList.remove('text-blue-500', 'font-semibold', 'border-b-2', 'border-blue-500');
+                        nav.classList.add('text-gray-600', 'hover:text-blue-500');
+                    });
+                    link.classList.add('text-blue-500', 'font-semibold', 'border-b-2', 'border-blue-500');
+                    link.classList.remove('text-gray-600', 'hover:text-blue-500');
+                });
+            });
+
+            // --- 2. Safety Accordion ---
+            const accordionHeaders = document.querySelectorAll('.accordion-header');
+            accordionHeaders.forEach(header => {
+                header.addEventListener('click', () => {
+                    const content = header.nextElementSibling;
+                    const isOpen = content.classList.contains('open');
+                    
+                    if (isOpen) {
+                        content.classList.remove('open');
+                        header.classList.remove('open');
+                    } else {
+                        content.classList.add('open');
+                        header.classList.add('open');
+                    }
+                });
+            });
+
+            // --- 3. Quiz Logic ---
+            const quizData = [
+                {
+                    question: "What is the most common cause of a tsunami?",
+                    options: ["Heavy Rain", "Underwater Earthquake", "Strong Winds"],
+                    correct: 1
+                },
+                {
+                    question: "Where is the safest place to be during a tsunami warning?",
+                    options: ["On the beach", "In a basement", "On high ground"],
+                    correct: 2
+                },
+                {
+                    question: "Which of these should you pack in an emergency 'Go Bag'?",
+                    options: ["Video games", "Water and a first-aid kit", "Heavy books"],
+                    correct: 1
+                },
+                {
+                    question: "If you feel a strong earthquake at the coast, what should you do?",
+                    options: ["Wait for a siren", "Move inland to high ground", "Go to the beach to watch"],
+                    correct: 1
+                },
+                {
+                    question: "When is it safe to return to the coast after a tsunami?",
+                    options: ["When the water looks calm", "After 1 hour", "When authorities give the 'all clear'"],
+                    correct: 2
+                }
+            ];
+
+            let currentQuestionIndex = 0;
+            let quizScore = 0;
+            const questionText = document.getElementById('question-text');
+            const optionsContainer = document.getElementById('options-container');
+            const nextQuizBtn = document.getElementById('next-quiz-btn');
+            const quizContainer = document.getElementById('quiz-container');
+            const quizResults = document.getElementById('quiz-results');
+            const scoreText = document.getElementById('score-text');
+            const tryAgainQuizBtn = document.getElementById('try-again-quiz-btn');
+
+            function showQuestion() {
+                const q = quizData[currentQuestionIndex];
+                questionText.textContent = q.question;
+                optionsContainer.innerHTML = '';
+                nextQuizBtn.classList.add('hidden');
+
+                q.options.forEach((option, index) => {
+                    const button = document.createElement('button');
+                    button.textContent = option;
+                    button.classList.add('block', 'w-full', 'text-left', 'p-3', 'bg-gray-100', 'hover:bg-gray-200', 'rounded-lg', 'transition-colors', 'border', 'border-gray-200');
+                    button.dataset.index = index;
+                    button.addEventListener('click', selectAnswer);
+                    optionsContainer.appendChild(button);
+                });
+            }
+
+            function selectAnswer(e) {
+                const selectedIndex = parseInt(e.target.dataset.index);
+                const correctIndex = quizData[currentQuestionIndex].correct;
+
+                // Disable all buttons
+                optionsContainer.querySelectorAll('button').forEach(btn => {
+                    btn.disabled = true;
+                    btn.classList.remove('hover:bg-gray-200');
+                });
+
+                // Mark correct/incorrect
+                if (selectedIndex === correctIndex) {
+                    e.target.classList.add('bg-green-200', 'border-green-400');
+                    quizScore++;
+                } else {
+                    e.target.classList.add('bg-red-200', 'border-red-400');
+                    // Highlight the correct answer
+                    optionsContainer.querySelector(`button[data-index="${correctIndex}"]`).classList.add('bg-green-200', 'border-green-400');
+                }
+
+                nextQuizBtn.classList.remove('hidden');
+            }
+
+            nextQuizBtn.addEventListener('click', () => {
+                currentQuestionIndex++;
+                if (currentQuestionIndex < quizData.length) {
+                    showQuestion();
+                } else {
+                    showQuizResults();
+                }
+            });
+
+            function showQuizResults() {
+                quizContainer.classList.add('hidden');
+                quizResults.classList.remove('hidden');
+                scoreText.textContent = `Your score: ${quizScore} / ${quizData.length}`;
+            }
+
+            tryAgainQuizBtn.addEventListener('click', () => {
+                currentQuestionIndex = 0;
+                quizScore = 0;
+                quizResults.classList.add('hidden');
+                quizContainer.classList.remove('hidden');
+                showQuestion();
+            });
+
+            // --- 5. Puzzle Game Logic ---
+            const puzzleItems = [
+                { id: 'item1', name: '💧 Water Bottle', essential: true },
+                { id: 'item2', name: '🎮 Video Game', essential: false },
+                { id: 'item3', name: '🩹 First-Aid Kit', essential: true },
+                { id: 'item4', name: '📺 Large TV', essential: false },
+                { id: 'item5', name: '🔦 Flashlight', essential: true },
+                { id: 'item6', name: '🍕 Pizza', essential: false },
+                { id: 'item7', name: '📻 Radio', essential: true },
+                { id: 'item8', name: '📚 Heavy Books', essential: false },
+                { id: 'item9', name: '📢 Whistle', essential: true }
+            ];
+            const totalEssential = puzzleItems.filter(item => item.essential).length;
+
+            const itemSelection = document.getElementById('item-selection');
+            const goBagZone = document.getElementById('go-bag-zone');
+            const checkBagBtn = document.getElementById('check-bag-btn');
+            const puzzleResults = document.getElementById('puzzle-results');
+            const puzzleScoreDisplay = document.getElementById('puzzle-score-display');
+            const resetPuzzleBtn = document.getElementById('reset-puzzle-btn');
+
+            function initializePuzzle() {
+                itemSelection.innerHTML = '';
+                goBagZone.innerHTML = '';
+                puzzleResults.classList.add('hidden');
+                checkBagBtn.classList.remove('hidden');
+
+                puzzleItems.forEach(item => {
+                    const el = document.createElement('div');
+                    el.id = item.id;
+                    el.textContent = item.name;
+                    el.draggable = true;
+                    el.dataset.essential = item.essential;
+                    el.classList.add('puzzle-item', 'p-3', 'bg-white', 'rounded', 'shadow-sm', 'border', 'cursor-move');
+                    itemSelection.appendChild(el);
+                    
+                    el.addEventListener('dragstart', e => {
+                        e.dataTransfer.setData('text/plain', e.target.id);
+                    });
+                });
+            }
+
+            goBagZone.addEventListener('dragover', e => {
+                e.preventDefault();
+                goBagZone.classList.add('drag-over');
+            });
+
+            goBagZone.addEventListener('dragleave', () => {
+                goBagZone.classList.remove('drag-over');
+            });
+
+            goBagZone.addEventListener('drop', e => {
+                e.preventDefault();
+                goBagZone.classList.remove('drag-over');
+                const id = e.dataTransfer.getData('text/plain');
+                const droppedItem = document.getElementById(id);
+                if (droppedItem) {
+                    goBagZone.appendChild(droppedItem);
+                }
+            });
+
+            // Also allow dropping back into the selection area
+            itemSelection.addEventListener('dragover', e => e.preventDefault());
+            itemSelection.addEventListener('drop', e => {
+                e.preventDefault();
+                const id = e.dataTransfer.getData('text/plain');
+                const droppedItem = document.getElementById(id);
+                if (droppedItem) {
+                    itemSelection.appendChild(droppedItem);
+                }
+            });
+
+            checkBagBtn.addEventListener('click', () => {
+                let correctItems = 0;
+                let incorrectItems = 0;
+                
+                goBagZone.querySelectorAll('.puzzle-item').forEach(item => {
+                    item.draggable = false;
+                    item.classList.remove('cursor-move');
+                    if (item.dataset.essential === 'true') {
+                        item.classList.add('bg-green-200', 'border-green-400');
+                        correctItems++;
+                    } else {
+                        item.classList.add('bg-red-200', 'border-red-400');
+                        incorrectItems++;
+                    }
+                });
+                
+                itemSelection.querySelectorAll('.puzzle-item').forEach(item => {
+                    item.draggable = false;
+                    item.classList.remove('cursor-move');
+                });
+                
+                puzzleScoreDisplay.textContent = `You packed ${correctItems} / ${totalEssential} essential items. You incorrectly packed ${incorrectItems} items.`;
+                puzzleResults.classList.remove('hidden');
+                checkBagBtn.classList.add('hidden');
+            });
+
+            resetPuzzleBtn.addEventListener('click', initializePuzzle);
+
+            // --- 6. NEW CHATBOT LOGIC ---
+            const chatToggleBtn = document.getElementById('chat-toggle-btn');
+            const chatWindow = document.getElementById('chat-window');
+            const chatCloseBtn = document.getElementById('chat-close-btn');
+            const chatLog = document.getElementById('chat-log');
+            const chatQuickReplies = document.getElementById('chat-quick-replies');
+
+            chatToggleBtn.addEventListener('click', () => {
+                // --- NEW: Start audio context on user interaction ---
+                Tone.start(); 
+                // --- END NEW ---
+                chatWindow.classList.toggle('hidden');
+                if (!chatWindow.classList.contains('hidden')) {
+                    // --- NEW: Play open sound ---
+                    openSound.triggerAttackRelease("C5", "8n"); 
+                    // --- END NEW ---
+                    // If opening, show welcome message
+                    showWelcomeMessage();
+                }
+            });
+
+            chatCloseBtn.addEventListener('click', () => {
+                chatWindow.classList.add('hidden');
+            });
+
+            function addBotMessage(message) {
+                const msgEl = document.createElement('div');
+                msgEl.innerHTML = `<div class="bg-gray-200 text-gray-800 p-3 rounded-lg max-w-xs text-sm">${message}</div>`;
+                chatLog.appendChild(msgEl);
+                chatLog.scrollTop = chatLog.scrollHeight; // Auto-scroll
+                // --- NEW: Play bot sound ---
+                // Play slightly after to feel like a response
+                botSound.triggerAttackRelease("G5", "8n", Tone.now() + 0.05); 
+                // --- END NEW ---
+
+                // --- NEW: Add Speech Synthesis ---
+                // Clean HTML tags from the message for speech
+                const cleanText = message.replace(/<[^>]*>?/gm, ' ');
+                
+                // Create an utterance
+                const utterance = new SpeechSynthesisUtterance(cleanText);
+                utterance.lang = 'en-US'; // Set language
+                utterance.pitch = 1.1; // Slightly higher pitch for a 'bot'
+                utterance.rate = 1.1; // Speak slightly faster
+                
+                // Cancel any previous speech
+                window.speechSynthesis.cancel();
+
+                // Speak the message
+                // Use a small delay to let the sound play first
+                setTimeout(() => {
+                    window.speechSynthesis.speak(utterance);
+                }, 100); // 100ms delay
+                // --- END NEW ---
+            }
+
+            function addUserMessage(message) {
+                const msgEl = document.createElement('div');
+                msgEl.innerHTML = `<div class="bg-blue-500 text-white p-3 rounded-lg max-w-xs ml-auto text-sm">${message}</div>`;
+                chatLog.appendChild(msgEl);
+                chatLog.scrollTop = chatLog.scrollHeight; // Auto-scroll
+            }
+
+            function showWelcomeMessage() {
+                chatLog.innerHTML = ''; // Clear log
+                // --- NEW: Add Tsunami Fact ---
+                const fact = disasterFacts[Math.floor(Math.random() * disasterFacts.length)];
+                addBotMessage(`Hi! Did you know: "${fact}" <br><br> How can I help you today?`);
+                // --- END NEW ---
+                showQuickReplies();
+            }
+
+            function showQuickReplies() {
+                chatQuickReplies.innerHTML = ''; // Clear old replies
+                const replies = [
+                    { text: 'Learn about Tsunamis', target: 'learn' },
+                    { text: 'View Safety Tips', target: 'safety' },
+                    { text: 'Take the Quiz', target: 'quiz' },
+                    { text: 'Play the Run Game', target: 'run-game' },
+                    { text: 'Try the Go-Bag Puzzle', target: 'puzzle' }
+                ];
+
+                replies.forEach(reply => {
+                    const btn = document.createElement('button');
+                    btn.textContent = reply.text;
+                    btn.dataset.target = reply.target;
+                    btn.classList.add('w-full', 'text-left', 'p-2', 'text-blue-600', 'hover:bg-gray-100', 'rounded', 'text-sm', 'font-medium');
+                    btn.addEventListener('click', handleQuickReply);
+                    chatQuickReplies.appendChild(btn);
+                });
+            }
+
+            function handleQuickReply(e) {
+                const targetId = e.target.dataset.target;
+                const userText = e.target.textContent;
+
+                // --- NEW: Play user sound ---
+                userSound.triggerAttackRelease("E4", "8n");
+                // --- END NEW ---
+
+                // --- NEW: Cancel any ongoing bot speech ---
+                window.speechSynthesis.cancel();
+                // --- END NEW ---
+
+                addUserMessage(userText);
+                
+                // Find and click the corresponding nav link
+                const navLink = document.querySelector(`.nav-link[data-target="${targetId}"]`);
+                if (navLink) {
+                    navLink.click();
+                    // Bot response
+                    setTimeout(() => {
+                        let botResponse = `Sure! Taking you to the "${userText}" section.`;
+                        if (targetId === 'run-game') {
+                            botResponse = "Starting the 'Evacuation Run' game... Good luck!";
+                        }
+                        addBotMessage(botResponse);
+                    }, 500);
+                }
+
+                // Hide chat window after selection
+                setTimeout(() => {
+                    chatWindow.classList.add('hidden');
+                }, 1500);
+            }
+            // --- END CHATBOT LOGIC ---
+
+
+            // --- GAME EVENT LISTENERS (must be after functions are defined) ---
+            
+            // Resize the canvas when window size changes
+            window.addEventListener('resize', () => {
+                // Only resize if not in the middle of a game
+                if (gameState !== 'RUNNING') {
+                    initGame();
+                } else {
+                    setCanvasSize();
+                }
+            });
+
+            // NEW: Start buttons
+            if(startEasy) startEasy.addEventListener('click', () => startGame('easy'));
+            if(startNormal) startNormal.addEventListener('click', () => startGame('normal'));
+            if(startHard) startHard.addEventListener('click', () => startGame('hard'));
+
+            // Restart button
+            if(restartButton) restartButton.addEventListener('click', () => {
+                // NEW: Restart at the same level
+                if (currentLevelSettings) {
+                    startGame(currentLevelSettings.levelName);
+                } else {
+                    startGame('normal'); // Fallback just in case
+                }
+            });
+
+            // MODIFIED: Home button listener
+            if(homeButton) homeButton.addEventListener('click', () => {
+                // Hide game UI
+                gameOverScreen.style.display = 'none';
+                startScreen.style.display = 'none';
+                
+                // Hide game container
+                document.getElementById('tsunami-run-game-container').style.display = 'none';
+
+                // Stop the game loop
+                if (gameLoopId) {
+                    cancelAnimationFrame(gameLoopId);
+                    gameLoopId = null;
+                }
+                gameState = 'START';
+                
+                // Stop any lingering game sounds
+                earthquakeSound.stop();
+                Tone.Transport.stop();
+
+                // Show main app
+                document.querySelector('header').style.display = '';
+                document.querySelector('main').style.display = '';
+                
+                // Manually click the 'Learn' tab to reset the main app view
+                const learnLink = document.querySelector('.nav-link[data-target="learn"]');
+                if(learnLink) learnLink.click();
+                
+                // --- NEW: Cancel any speech on game exit ---
+                window.speechSynthesis.cancel();
+                // --- END NEW ---
+            });
+
+            // Handle player fly (touch and mouse)
+            canvas.addEventListener('touchstart', handleFly, { passive: false });
+            canvas.addEventListener('mousedown', handleFly);
+
+
+            // --- 8. FINAL INITIALIZATION ---
+            showQuestion(); // Init quiz
+            initializePuzzle(); // Init puzzle
+            currentLevelSettings = levelSettings['normal']; // Init game default level
+            initGame(); // Set up the game canvas size etc. on first load
+
+        });
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
